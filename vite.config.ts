@@ -9,22 +9,22 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: ['expobeton.jpg'],
       manifest: {
         name: 'Expobeton Email',
         short_name: 'Expobeton',
         description: 'Application de gestion des emails Expobeton',
-        theme_color: '#1a99ff',
+        theme_color: '#3b82f6',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'expobeton.jpg',
             sizes: '192x192',
-            type: 'image/png',
+            type: 'image/jpeg',
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'expobeton.jpg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/jpeg',
           },
         ],
       },
