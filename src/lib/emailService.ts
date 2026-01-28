@@ -1,11 +1,11 @@
 import { createEmailSent, updateEmailStatus } from './supabase'
+import { sendEmail as sendEmailViaResend } from '../services/emailService'
 
-// Configuration du service d'emails (simulation pour le développement)
-// En production, vous utiliserez un vrai service comme SendGrid, Mailgun, etc.
+// Configuration du service d'emails
 interface EmailConfig {
   from: string
   replyTo?: string
-  adminEmail?: string // Email de l'administrateur pour les accusés de réception
+  adminEmail?: string
 }
 
 const emailConfig: EmailConfig = {
@@ -24,27 +24,6 @@ export interface EmailData {
   campaignId?: string
 }
 
-// Simulation d'envoi d'email (remplacer par un vrai service en production)
-const sendEmailViaProvider = async (): Promise<{ success: boolean; messageId?: string; error?: string }> => {
-  // Simulation de délai d'envoi
-  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-  
-  // Simulation de succès/échec (90% de succès)
-  const isSuccess = Math.random() > 0.1
-  
-  if (isSuccess) {
-    return {
-      success: true,
-      messageId: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    }
-  } else {
-    return {
-      success: false,
-      error: 'Erreur de connexion au serveur SMTP'
-    }
-  }
-}
-
 // Fonction pour envoyer un accusé de réception à l'administrateur
 export const sendReceiptEmail = async () => {
   if (!emailConfig.adminEmail) {
@@ -53,7 +32,11 @@ export const sendReceiptEmail = async () => {
   }
 
   try {
-    await sendEmailViaProvider()
+    await sendEmailViaResend({
+      to: emailConfig.adminEmail,
+      subject: 'Accusé de réception - Email envoyé',
+      html: '<p>Un email a été envoyé avec succès via Expobeton Email.</p>'
+    })
   } catch (error) {
     console.error('Erreur lors de l\'envoi de l\'accusé de réception:', error)
   }
@@ -75,10 +58,15 @@ export const sendEmail = async (emailData: EmailData): Promise<{ success: boolea
     // 2. Mettre à jour le statut à "sending"
     await updateEmailStatus(emailRecord.id, 'pending')
 
-    // 3. Envoyer l'email via le provider
-    const result = await sendEmailViaProvider()
+    // 3. Envoyer l'email via Resend
+    try {
+      await sendEmailViaResend({
+        to: emailData.to,
+        subject: emailData.subject,
+        html: emailData.html,
+        text: emailData.text
+      });
 
-    if (result.success) {
       // 4. Si succès, mettre à jour le statut à "sent"
       await updateEmailStatus(emailRecord.id, 'sent')
       
@@ -98,16 +86,13 @@ export const sendEmail = async (emailData: EmailData): Promise<{ success: boolea
         success: true,
         emailId: emailRecord.id
       }
-    } else {
-      // 7. Si échec, mettre à jour le statut à "failed"
-      await updateEmailStatus(emailRecord.id, 'failed', result.error)
-      
-      // 8. Envoyer l'accusé d'échec à l'administrateur
-      await sendReceiptEmail()
-      
+    } catch (error) {
+      // Gérer l'erreur d'envoi
+      await updateEmailStatus(emailRecord.id, 'failed')
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
       return {
         success: false,
-        error: result.error
+        error: errorMessage
       }
     }
   } catch (error) {

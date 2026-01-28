@@ -71,11 +71,47 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
           // Convertir en JSON
           const jsonData = XLSX.utils.sheet_to_json(worksheet)
           
-          // Mapper les données vers notre format
-          const importedContacts: ImportedContact[] = jsonData.map((row: any) => ({
-            nom_organisation: row['Organisation'] || row['Nom'] || row['Company'] || row['organisation'] || '',
-            adresse_email: row['Email'] || row['email'] || row['Email Address'] || row['adresse_email'] || ''
-          })).filter(contact => contact.adresse_email && contact.nom_organisation)
+          // Mapper les données vers notre format avec plus de flexibilité
+          const importedContacts: ImportedContact[] = jsonData.map((row: any) => {
+            // Récupérer toutes les clés de la ligne pour débogage
+            const keys = Object.keys(row);
+            console.log('Colonnes trouvées:', keys);
+            console.log('Données brutes:', row);
+            
+            // Fonction pour trouver une valeur par clé flexible
+            const findValue = (possibleKeys: string[]): string => {
+              for (const key of possibleKeys) {
+                if (row[key] && typeof row[key] === 'string' && row[key].trim()) {
+                  return row[key].trim();
+                }
+              }
+              return '';
+            };
+            
+            const nom_organisation = findValue([
+              'Organisation', 'Nom', 'Company', 'organisation', 'société', 'societe', 
+              'Société', 'Societe', 'Entreprise', 'entreprise', 'Nom Organisation',
+              'Nom de l\'organisation', 'Raison Sociale', 'raison sociale', 'RS',
+              'Organization', 'Organization Name', 'Business Name', 'Firm Name'
+            ]);
+            
+            const adresse_email = findValue([
+              'Email', 'email', 'Email Address', 'adresse_email', 'adresse email',
+              'Mail', 'mail', 'E-mail', 'e-mail', 'Courriel', 'courriel',
+              'Email Address', 'Email Adresse', 'Adresse Email', 'Contact Email'
+            ]);
+            
+            return {
+              nom_organisation,
+              adresse_email
+            };
+          }).filter(contact => {
+            const isValid = contact.adresse_email && contact.nom_organisation;
+            if (!isValid) {
+              console.log('Contact invalide filtré:', contact);
+            }
+            return isValid;
+          });
           
           if (importedContacts.length === 0) {
             // Notification d'erreur moderne et informative
