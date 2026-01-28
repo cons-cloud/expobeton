@@ -1,0 +1,282 @@
+/* Responsive Design for ExpoBeton Email Dashboard */
+
+/* Global responsive styles */
+.responsive-dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  position: relative;
+}
+
+/* Sidebar responsive */
+.responsive-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 280px;
+  background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+/* Main content responsive */
+.responsive-main-content {
+  flex: 1;
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  transition: all 0.3s ease;
+  min-height: 100vh;
+}
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .responsive-sidebar {
+    width: 240px;
+  }
+  
+  .responsive-main-content {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .responsive-sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .responsive-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  
+  .responsive-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .responsive-container {
+    padding: 0 12px !important;
+  }
+  
+  .responsive-header-actions {
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+    padding: 12px 0 !important;
+  }
+  
+  .responsive-modal {
+    width: 90% !important;
+    max-width: 500px !important;
+    padding: 24px !important;
+    border-radius: 16px !important;
+  }
+  
+  .responsive-form-row {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  
+  .responsive-card-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .responsive-container {
+    padding: 0 8px !important;
+  }
+  
+  .responsive-header-actions {
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+    padding: 8px 0 !important;
+  }
+  
+  .responsive-modal {
+    width: 95% !important;
+    max-width: 400px !important;
+    padding: 20px !important;
+  }
+  
+  .responsive-button {
+    padding: 8px 12px !important;
+    font-size: 0.875rem !important;
+  }
+  
+  .responsive-title {
+    font-size: 1.25rem !important;
+  }
+  
+  .responsive-subtitle {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Card Grid Responsive */
+.responsive-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-card-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Modal Responsive */
+.responsive-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.responsive-modal {
+  background: linear-gradient(145deg, #1a1f2e 0%, #2d3748 50%, #1a1f2e 100%);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+  border-radius: 24px;
+  padding: 40px;
+  width: 80%;
+  max-width: 800px;
+  max-height: 85vh;
+  overflow: auto;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(16, 185, 129, 0.1);
+  position: relative;
+}
+
+/* Form Responsive */
+.responsive-form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.responsive-form-field {
+  flex: 1;
+}
+
+.responsive-textarea {
+  width: 100%;
+  min-width: 100%;
+}
+
+/* Button Responsive */
+.responsive-button-primary {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  border: none;
+  color: white;
+  font-weight: 600;
+  padding: 12px 32px;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  flex: 1.5;
+}
+
+.responsive-button-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  flex: 1;
+}
+
+/* Touch-friendly for mobile */
+@media (max-width: 768px) {
+  .responsive-button-primary,
+  .responsive-button-secondary {
+    padding: 16px 24px;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+  
+  .responsive-button-primary {
+    flex: 1;
+  }
+  
+  .responsive-button-secondary {
+    flex: 1;
+  }
+}
+
+/* Smooth transitions */
+.responsive-transition {
+  transition: all 0.3s ease;
+}
+
+/* Hide scrollbar on mobile */
+@media (max-width: 768px) {
+  .responsive-modal::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .responsive-modal::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .responsive-modal::-webkit-scrollbar-thumb {
+    background: rgba(16, 185, 129, 0.5);
+    border-radius: 2px;
+  }
+}
+
+/* Landscape mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .responsive-modal {
+    max-height: 90vh;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .responsive-sidebar,
+  .responsive-modal {
+    border-width: 0.5px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .responsive-sidebar {
+    display: none;
+  }
+  
+  .responsive-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+}
