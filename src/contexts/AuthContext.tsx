@@ -1,9 +1,6 @@
 import { createContext, useEffect, useState } from 'react';
-
-type User = {
-  email: string;
-  id: string;
-};
+import { supabase } from '../lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 type AuthContextType = {
   user: User | null;
@@ -24,26 +21,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Vérifier l'état d'authentification au chargement
-    const checkAuth = () => {
-      const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-      const userEmail = localStorage.getItem('userEmail');
-
-      if (isAuthenticated && userEmail) {
-        setUser({ email: userEmail, id: 'local-user' });
+    // Vérifier l'état d'authentification Supabase au chargement
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
+        
+        // Persister la session pour éviter les redirections
+        if (session?.user) {
+          localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+        }
+      } catch (error) {
+        console.error('Erreur vérification auth:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
+
+    // Écouter les changements d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('Changement auth:', event, session?.user?.email);
+        setUser(session?.user || null);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+        } else if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('supabase.auth.token');
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userEmail');
-    setUser(null);
-    // Utiliser window.location au lieu de useNavigate
-    window.location.href = '/login';
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('supabase.auth.token');
+      setUser(null);
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Erreur déconnexion:', error);
+    }
   };
 
   const value = {
@@ -54,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
