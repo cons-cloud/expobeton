@@ -71,76 +71,220 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
           // Convertir en JSON
           const jsonData = XLSX.utils.sheet_to_json(worksheet)
           
-          // Mapper les données vers notre format avec plus de flexibilité
-          const importedContacts: ImportedContact[] = jsonData.map((row: any) => {
-            // Récupérer toutes les clés de la ligne pour débogage
+          // Mapper les données vers notre format avec détection ultra-intelligente
+          const importedContacts: ImportedContact[] = jsonData.map((row: any, index: number) => {
+            // Récupérer toutes les clés et valeurs pour analyse complète
             const keys = Object.keys(row);
-            console.log('Colonnes trouvées:', keys);
-            console.log('Données brutes:', row);
+            const values = Object.values(row);
+            console.log(`Ligne ${index + 1} (${keys.length} colonnes):`, { keys, values, row });
             
-            // Fonction pour trouver une valeur par clé flexible
-            const findValue = (possibleKeys: string[]): string => {
-              for (const key of possibleKeys) {
-                if (row[key] && typeof row[key] === 'string' && row[key].trim()) {
-                  return row[key].trim();
-                }
-              }
-              return '';
-            };
-            
-            // Fonction pour valider un email
+            // Fonction pour valider un email avec regex stricte
             const isValidEmail = (email: string): boolean => {
               const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-              return emailRegex.test(email);
+              return emailRegex.test(email.trim());
             };
             
-            // Recherche extensive pour le nom de l'organisation
-            const nom_organisation = findValue([
+            // Fonction pour détecter si un texte ressemble à une organisation
+            const looksLikeOrganization = (text: string): boolean => {
+              const cleanText = text.trim().toLowerCase();
+              
+              // Exclure les emails et les valeurs numériques
+              if (isValidEmail(cleanText) || /^\d+$/.test(cleanText)) {
+                return false;
+              }
+              
+              // Exclure les valeurs trop courtes ou trop longues
+              if (cleanText.length < 2 || cleanText.length > 200) {
+                return false;
+              }
+              
+              // Mots clés d'organisation
+              const orgKeywords = [
+                'société', 'societe', 'company', 'entreprise', 'organization',
+                'sarl', 'eurl', 'sas', 'sa', 'ltd', 'inc', 'corp', 'llc',
+                'group', 'groupe', 'international', 'services', 'consulting',
+                'technologies', 'tech', 'solutions', 'systems', 'industries',
+                'holding', 'investissement', 'finance', 'bank', 'banque',
+                'association', 'fondation', 'institut', 'université', 'ecole'
+              ];
+              
+              // Vérifier si contient des mots clés d'organisation
+              const hasOrgKeyword = orgKeywords.some(keyword => 
+                cleanText.includes(keyword)
+              );
+              
+              // Vérifier si c'est un nom propre (majuscules, longueur raisonnable)
+              const isProperName = cleanText.length > 2 && 
+                cleanText.length < 100 && 
+                !cleanText.includes('@') &&
+                !/^\d+$/.test(cleanText);
+              
+              // Vérifier si contient plusieurs mots (typique des noms d'organisation)
+              const hasMultipleWords = cleanText.split(' ').length >= 2;
+              
+              // Vérifier si commence par une majuscule (nom propre)
+              const startsWithCapital = /^[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ]/.test(cleanText);
+              
+              return hasOrgKeyword || (isProperName && (hasMultipleWords || cleanText.length > 5)) || startsWithCapital;
+            };
+            
+            let nom_organisation = '';
+            let adresse_email = '';
+            
+            // 1. Chercher d'abord dans les colonnes avec noms standards (optimisé)
+            const orgKeys = [
               'Organisation', 'Nom', 'Company', 'organisation', 'société', 'societe', 
               'Société', 'Societe', 'Entreprise', 'entreprise', 'Nom Organisation',
               'Nom de l\'organisation', 'Raison Sociale', 'raison sociale', 'RS',
               'Organization', 'Organization Name', 'Business Name', 'Firm Name',
               'Nom Complet', 'Full Name', 'Contact Name', 'Personne', 'Contact',
-              'Client', 'Customer', 'Provider', 'Fournisseur', 'Partenaire'
-            ]);
+              'Client', 'Customer', 'Provider', 'Fournisseur', 'Partenaire',
+              'Nom du client', 'Client Name', 'Société cliente', 'Company Name',
+              'Raison sociale', 'Denomination', 'Dénomination', 'Structure'
+            ];
             
-            // Recherche extensive pour l'email avec validation
-            let adresse_email = '';
             const emailKeys = [
               'Email', 'email', 'Email Address', 'adresse_email', 'adresse email',
               'Mail', 'mail', 'E-mail', 'e-mail', 'Courriel', 'courriel',
               'Email Address', 'Email Adresse', 'Adresse Email', 'Contact Email',
-              'Email Contact', 'Mail Address', 'Email Professionnel', 'Work Email'
+              'Email Contact', 'Mail Address', 'Email Professionnel', 'Work Email',
+              'Email du contact', 'Contact Mail', 'Email professionnel',
+              'Mail professionnel', 'Email de contact', 'Contact email'
             ];
             
-            // Chercher d'abord les colonnes email standards
-            for (const key of emailKeys) {
-              const value = findValue([key]);
-              if (value && isValidEmail(value)) {
-                adresse_email = value;
-                break;
-              }
-            }
+            // Optimisation : chercher d'abord dans les colonnes les plus probables
+            const priorityOrgKeys = ['Organisation', 'Nom', 'Company', 'Société', 'Entreprise', 'Client'];
+            const priorityEmailKeys = ['Email', 'email', 'Mail', 'mail'];
             
-            // Si pas d'email trouvé, chercher dans toutes les colonnes
-            if (!adresse_email) {
-              for (const [key, value] of Object.entries(row)) {
-                if (typeof value === 'string' && isValidEmail(value.trim())) {
-                  adresse_email = value.trim();
-                  console.log(`Email trouvé dans la colonne "${key}": ${adresse_email}`);
+            // Chercher organisation dans les colonnes prioritaires
+            for (const key of priorityOrgKeys) {
+              if (row[key] && typeof row[key] === 'string' && row[key].trim()) {
+                const value = row[key].trim();
+                if (looksLikeOrganization(value)) {
+                  nom_organisation = value;
+                  console.log(`Organisation trouvée dans colonne prioritaire "${key}": ${nom_organisation}`);
                   break;
                 }
               }
             }
             
-            return {
-              nom_organisation,
-              adresse_email
+            // Chercher email dans les colonnes prioritaires
+            for (const key of priorityEmailKeys) {
+              if (row[key] && typeof row[key] === 'string' && row[key].trim()) {
+                const value = row[key].trim();
+                if (isValidEmail(value)) {
+                  adresse_email = value;
+                  console.log(`Email trouvé dans colonne prioritaire "${key}": ${adresse_email}`);
+                  break;
+                }
+              }
+            }
+            
+            // Si pas trouvé dans les priorités, chercher dans toutes les colonnes standards
+            if (!nom_organisation) {
+              for (const key of orgKeys) {
+                if (row[key] && typeof row[key] === 'string' && row[key].trim()) {
+                  const value = row[key].trim();
+                  if (looksLikeOrganization(value)) {
+                    nom_organisation = value;
+                    console.log(`Organisation trouvée dans colonne standard "${key}": ${nom_organisation}`);
+                    break;
+                  }
+                }
+              }
+            }
+            
+            if (!adresse_email) {
+              for (const key of emailKeys) {
+                if (row[key] && typeof row[key] === 'string' && row[key].trim()) {
+                  const value = row[key].trim();
+                  if (isValidEmail(value)) {
+                    adresse_email = value;
+                    console.log(`Email trouvé dans colonne standard "${key}": ${adresse_email}`);
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // 2. Si pas trouvé, chercher dans TOUTES les valeurs (optimisé pour gros fichiers)
+            if (!nom_organisation || !adresse_email) {
+              console.log(`Recherche étendue dans ${keys.length} colonnes...`);
+              
+              // Limiter la recherche pour éviter les timeouts sur très gros fichiers
+              const maxColumnsToSearch = Math.min(keys.length, 100);
+              const searchKeys = keys.slice(0, maxColumnsToSearch);
+              
+              for (const key of searchKeys) {
+                if (typeof row[key] === 'string' && row[key].trim()) {
+                  const cleanValue = row[key].trim();
+                  
+                  // Chercher organisation si pas encore trouvé
+                  if (!nom_organisation && looksLikeOrganization(cleanValue)) {
+                    nom_organisation = cleanValue;
+                    console.log(`Organisation trouvée dans colonne inconnue "${key}": ${nom_organisation}`);
+                  }
+                  
+                  // Chercher email si pas encore trouvé
+                  if (!adresse_email && isValidEmail(cleanValue)) {
+                    adresse_email = cleanValue;
+                    console.log(`Email trouvé dans colonne inconnue "${key}": ${adresse_email}`);
+                  }
+                  
+                  // Arrêter si les deux sont trouvés
+                  if (nom_organisation && adresse_email) {
+                    break;
+                  }
+                }
+              }
+              
+              if (keys.length > maxColumnsToSearch) {
+                console.log(`Recherche limitée à ${maxColumnsToSearch} colonnes pour optimisation`);
+              }
+            }
+            
+            // 3. Dernière tentative : utiliser l'intelligence artificielle basique
+            if (!nom_organisation || !adresse_email) {
+              console.log('Dernière tentative : analyse intelligente...');
+              
+              // Analyser toutes les valeurs pour trouver la meilleure correspondance
+              const allValues = values.filter(v => typeof v === 'string' && v.trim()) as string[];
+              
+              // Trouver le meilleur candidat pour organisation
+              if (!nom_organisation) {
+                const orgCandidates = allValues.filter(v => looksLikeOrganization(v.trim()));
+                if (orgCandidates.length > 0) {
+                  // Prendre le plus long (généralement plus descriptif)
+                  nom_organisation = orgCandidates.reduce((a: string, b: string) => 
+                    a.trim().length > b.trim().length ? a : b
+                  ).trim();
+                  console.log(`Meilleur candidat organisation: ${nom_organisation}`);
+                }
+              }
+              
+              // Trouver le meilleur candidat pour email
+              if (!adresse_email) {
+                const emailCandidates = allValues.filter(v => isValidEmail(v.trim()));
+                if (emailCandidates.length > 0) {
+                  adresse_email = emailCandidates[0].trim();
+                  console.log(`Meilleur candidat email: ${adresse_email}`);
+                }
+              }
+            }
+            
+            const result = {
+              nom_organisation: nom_organisation.trim(),
+              adresse_email: adresse_email.trim()
             };
-          }).filter(contact => {
+            
+            console.log(`Résultat final pour ligne ${index + 1}:`, result);
+            return result;
+          }).filter((contact, index) => {
             const isValid = contact.adresse_email && contact.nom_organisation;
             if (!isValid) {
-              console.log('Contact invalide filtré:', contact);
+              console.log(`Contact invalide filtré (ligne ${index + 1}):`, contact);
+            } else {
+              console.log(`Contact valide (ligne ${index + 1}):`, contact);
             }
             return isValid;
           });
@@ -201,82 +345,18 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
                     background: 'rgba(255, 255, 255, 0.1)'
                   }
                 }
-              },
-              icon: <div style={{ width: 0 }} />
-            })
-            return
-          }
-          
-          console.log('Contacts importés:', importedContacts)
-          setImportPreview(importedContacts)
-          setShowImportModal(true)
-          
-        } catch (error) {
-          console.error('Erreur lors de la lecture du fichier:', error)
-          
-          // Notification d'erreur moderne
-          notifications.show({
-            id: 'file-read-error',
-            withCloseButton: true,
-            autoClose: 5000,
-            title: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <IconX size={8} color="#ef4444" />
-                <span style={{ color: 'white', fontWeight: 600 }}>Erreur de lecture</span>
-              </div>
-            ),
-            message: (
-              <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>
-                <div style={{ marginBottom: '8px' }}>
-                  <strong>Impossible de lire le fichier</strong>
-                </div>
-                <div style={{ 
-                  background: 'rgba(239, 68, 68, 0.1)', 
-                  border: '1px solid rgba(239, 68, 68, 0.2)', 
-                  borderRadius: '8px', 
-                  padding: '12px',
-                  fontSize: '0.85rem'
-                }}>
-                  <div style={{ color: '#fbbf24', marginBottom: '4px' }}>Solutions possibles :</div>
-                  <div>• Vérifiez que le fichier est bien au format Excel (.xlsx, .xls)</div>
-                  <div>• Assurez-vous que le fichier n'est pas corrompu</div>
-                  <div>• Essayez de rouvrir et sauvegarder le fichier</div>
-                </div>
-                <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.6)' }}>
-                  Si le problème persiste, contactez le support technique.
-                </div>
-              </div>
-            ),
-            color: 'red',
-            style: {
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05))',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '12px',
-              padding: '16px',
-              boxShadow: '0 8px 32px rgba(239, 68, 68, 0.2)',
-              minWidth: '400px',
-              maxWidth: '500px'
-            },
-            styles: {
-              closeButton: {
-                width: '12px',
-                height: '12px',
-                minHeight: '12px',
-                color: 'rgba(255, 255, 255, 0.6)',
-                '&:hover': {
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  background: 'rgba(255, 255, 255, 0.1)'
-                }
               }
-            },
-            icon: <div style={{ width: 0 }} />
-          })
+            })
+          } else {
+            setImportPreview(importedContacts)
+            setShowImportModal(true)
+          }
+        } catch (error) {
+          console.error('Erreur:', error)
         }
       }
     }
     
-    // Ajouter l'input au DOM et déclencher le clic
     document.body.appendChild(input)
     input.click()
     document.body.removeChild(input)
@@ -299,10 +379,13 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
         updated_at: new Date().toISOString()
       }))
       
-      // Insérer les contacts dans Supabase
+      // Insérer les contacts dans Supabase avec gestion des doublons
       const { data, error } = await supabase
         .from('contacts')
-        .insert(contactsToInsert)
+        .upsert(contactsToInsert, {
+          onConflict: 'email',
+          ignoreDuplicates: false
+        })
         .select()
       
       if (error) {
@@ -1329,7 +1412,7 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
                 </Text>
                 <TextInput
                   value={createForm.email}
-                  onChange={(e: any) => setCreateForm({ ...createForm, email: e.target.value })}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                   placeholder="email@exemple.com"
                   size="lg"
                   styles={{
@@ -1358,7 +1441,7 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
                   </Text>
                   <TextInput
                     value={createForm.first_name}
-                    onChange={(e: any) => setCreateForm({ ...createForm, first_name: e.target.value })}
+                    onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })}
                     placeholder="Jean"
                     size="lg"
                     styles={{
@@ -1385,7 +1468,7 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
                   </Text>
                   <TextInput
                     value={createForm.last_name}
-                    onChange={(e: any) => setCreateForm({ ...createForm, last_name: e.target.value })}
+                    onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })}
                     placeholder="Dupont"
                     size="lg"
                     styles={{
@@ -1414,7 +1497,7 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
                 </Text>
                 <TextInput
                   value={createForm.company}
-                  onChange={(e: any) => setCreateForm({ ...createForm, company: e.target.value })}
+                  onChange={(e) => setCreateForm({ ...createForm, company: e.target.value })}
                   placeholder="Nom de l'entreprise"
                   size="lg"
                   styles={{

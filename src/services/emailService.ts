@@ -16,8 +16,50 @@ const getHeaders = () => ({
   'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
 
+// Email de test autorisé par Resend
+const TEST_EMAIL = 'henrinelngando229@gmail.com';
+
+// Vérifier si l'email est le compte de test et adapter l'envoi
+const adaptEmailForResend = (recipient: string | string[]): string | string[] => {
+  // Si c'est un tableau, adapter chaque email
+  if (Array.isArray(recipient)) {
+    return recipient.map(email => {
+      // Si c'est le compte de test, on peut envoyer directement
+      if (email === TEST_EMAIL) {
+        return email;
+      }
+      
+      // Pour les autres emails, on redirige vers le compte de test en mode développement
+      if (import.meta.env.DEV) {
+        console.log(`Mode développement: redirection de ${email} vers ${TEST_EMAIL}`);
+        return TEST_EMAIL;
+      }
+      
+      // En production, on envoie au vrai destinataire
+      return email;
+    });
+  }
+  
+  // Si c'est une chaîne, traiter comme un seul email
+  if (recipient === TEST_EMAIL) {
+    return recipient;
+  }
+  
+  // Pour les autres emails, on redirige vers le compte de test en mode développement
+  if (import.meta.env.DEV) {
+    console.log(`Mode développement: redirection de ${recipient} vers ${TEST_EMAIL}`);
+    return TEST_EMAIL;
+  }
+  
+  // En production, on envoie au vrai destinataire
+  return recipient;
+};
+
 export const sendEmail = async (options: SendEmailOptions) => {
   try {
+    // Adapter le destinataire pour Resend
+    const adaptedTo = adaptEmailForResend(options.to);
+    
     // Ajouter lien de désabonnement pour améliorer la délivrabilité
     const htmlWithUnsubscribe = options.html + 
       `<br><br><small style="color: #666; font-size: 11px;">
@@ -27,6 +69,7 @@ export const sendEmail = async (options: SendEmailOptions) => {
 
     const emailData = {
       ...options,
+      to: adaptedTo,
       html: htmlWithUnsubscribe
     };
 
@@ -54,11 +97,14 @@ export const sendBulkEmails = async (emails: Omit<SendEmailOptions, 'from'>[]) =
   const results = [];
 
   try {
-    // Pour l'envoi en masse, on envoie les emails un par un sans délai
+    // Pour l'envoi en masse, on envoie les emails un par un avec délai anti-rate limiting
     for (const email of emails) {
       try {
         const result = await sendEmail(email);
         results.push({ success: true, messageId: result.messageId, to: email.to });
+        
+        // Délai de 600ms entre chaque envoi pour respecter la limite de 2 requêtes/seconde
+        await new Promise(resolve => setTimeout(resolve, 600));
       } catch (error: unknown) {
         console.error(`Failed to send email to ${email.to}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';

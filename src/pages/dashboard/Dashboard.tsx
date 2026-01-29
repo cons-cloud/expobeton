@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Container, Tabs, Title, Text, Card, Button } from '@mantine/core'
+import { notifications } from '@mantine/notifications'
 import { IconSend, IconUsers, IconChartBar, IconLogout, IconMail, IconActivity } from '@tabler/icons-react'
 import { useResponsive, getResponsiveStyles } from '../../hooks/useResponsive'
 import { supabase, signOut } from '../../lib/supabase'
@@ -197,7 +198,16 @@ export default function Dashboard() {
       }))
       
       // Envoyer la campagne en utilisant le service réel
+      console.log('Début de l\'envoi de la campagne...', {
+        campaignId: id,
+        campaignName: campaign.name,
+        recipientCount: recipientEmails.length,
+        emailsPrepared: emailsToSend.length
+      });
+      
       const result = await sendBulkEmails(emailsToSend)
+      
+      console.log('Résultat de l\'envoi de la campagne:', result);
 
       if (result.success) {
         console.log(`Campagne envoyée: ${result.summary.sent} emails, ${result.summary.failed} échecs`)
@@ -211,10 +221,80 @@ export default function Dashboard() {
           })
           .eq('id', id)
           
-        // Afficher une notification de succès avec alert pour l'instant
-        alert(`Campagne envoyée avec succès!\n${result.summary.sent} emails envoyés${result.summary.failed > 0 ? `, ${result.summary.failed} échecs` : ''}`)
+        // Afficher une notification de succès moderne et détaillée
+        notifications.show({
+          id: 'campaign-sent',
+          title: (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#10b981',
+                animation: 'pulse 2s infinite'
+              }} />
+              <span style={{ color: 'white', fontWeight: 600 }}>Campagne envoyée avec succès</span>
+            </div>
+          ),
+          message: (
+            <div style={{ 
+              color: 'rgba(255, 255, 255, 0.8)', 
+              fontSize: '0.9rem',
+              lineHeight: '1.4'
+            }}>
+              <div style={{ marginBottom: '8px' }}>
+                <strong>Résultats de l'envoi :</strong>
+              </div>
+              <div style={{ 
+                background: 'rgba(16, 185, 129, 0.1)', 
+                border: '1px solid rgba(16, 185, 129, 0.2)', 
+                borderRadius: '8px', 
+                padding: '12px',
+                fontFamily: 'monospace',
+                fontSize: '0.85rem'
+              }}>
+                <div style={{ color: '#10b981', marginBottom: '4px' }}>
+                  ✅ {result.summary.sent} emails envoyés avec succès
+                </div>
+                {result.summary.failed > 0 && (
+                  <div style={{ color: '#f59e0b' }}>
+                    ⚠️ {result.summary.failed} emails en échec
+                  </div>
+                )}
+              </div>
+              <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.6)' }}>
+                Les destinataires recevront les emails dans les prochaines minutes.
+              </div>
+            </div>
+          ),
+          color: 'green',
+          autoClose: 8000,
+          style: {
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(52, 211, 153, 0.05))',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 8px 32px rgba(16, 185, 129, 0.2)',
+            minWidth: '320px',
+            maxWidth: '400px'
+          },
+          styles: {
+            closeButton: {
+              width: '16px',
+              height: '16px',
+              minHeight: '16px',
+              color: 'rgba(255, 255, 255, 0.5)',
+              '&:hover': {
+                color: 'rgba(255, 255, 255, 0.8)',
+                background: 'rgba(255, 255, 255, 0.1)'
+              }
+            }
+          }
+        });
       } else {
-        const errors = result.results.filter(r => !r.success).map(r => r.error).join(', ')
+        const errors = result.results.filter(r => !r.success).map(r => r.error).join(', ');
+        console.error('Échec de l\'envoi de la campagne:', errors);
         throw new Error(`Échec de l'envoi: ${errors}`)
       }
 
@@ -230,7 +310,71 @@ export default function Dashboard() {
         .update({ status: 'draft' })
         .eq('id', id)
       
-      alert(`Erreur lors de l'envoi: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
+      notifications.show({
+        id: 'campaign-error',
+        title: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#ef4444',
+              animation: 'pulse 2s infinite'
+            }} />
+            <span style={{ color: 'white', fontWeight: 600 }}>Erreur lors de l'envoi</span>
+          </div>
+        ),
+        message: (
+          <div style={{ 
+            color: 'rgba(255, 255, 255, 0.8)', 
+            fontSize: '0.9rem',
+            lineHeight: '1.4'
+          }}>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Détails de l'erreur :</strong>
+            </div>
+            <div style={{ 
+              background: 'rgba(239, 68, 68, 0.1)', 
+              border: '1px solid rgba(239, 68, 68, 0.2)', 
+              borderRadius: '8px', 
+              padding: '12px',
+              fontFamily: 'monospace',
+              fontSize: '0.8rem',
+              color: '#fca5a5',
+              wordBreak: 'break-word'
+            }}>
+              {error instanceof Error ? error.message : 'Erreur inconnue'}
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.6)' }}>
+              La campagne a été remise en statut brouillon. Veuillez vérifier les destinataires et réessayer.
+            </div>
+          </div>
+        ),
+        color: 'red',
+        autoClose: 10000,
+        style: {
+          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(248, 113, 113, 0.05))',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          borderRadius: '12px',
+          padding: '16px',
+          boxShadow: '0 8px 32px rgba(239, 68, 68, 0.2)',
+          minWidth: '320px',
+          maxWidth: '450px'
+        },
+        styles: {
+          closeButton: {
+            width: '16px',
+            height: '16px',
+            minHeight: '16px',
+            color: 'rgba(255, 255, 255, 0.5)',
+            '&:hover': {
+              color: 'rgba(255, 255, 255, 0.8)',
+              background: 'rgba(255, 255, 255, 0.1)'
+            }
+          }
+        }
+      });
     }
   }
 
