@@ -135,53 +135,51 @@ export function InboxTab() {
   const handleSendNewEmail = async () => {
     if (newEmailForm.to && newEmailForm.subject && newEmailForm.content) {
       try {
+        // Importer dynamiquement le service email
+        const { sendEmail } = await import('../../services/emailService');
+        
         // Envoyer l'email via le service Resend
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resend-email`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              to: newEmailForm.to,
-              subject: newEmailForm.subject,
-              html: newEmailForm.content.replace(/\n/g, '<br>'),
-              text: newEmailForm.content
-            })
-          }
-        )
+        await sendEmail({
+          to: newEmailForm.to,
+          subject: newEmailForm.subject,
+          html: newEmailForm.content.replace(/\n/g, '<br>'),
+          text: newEmailForm.content
+        });
 
-        if (response.ok) {
-          notifications.show({
-            id: 'new-email-sent',
-            title: '✅ Email envoyé',
-            message: `Votre email a été envoyé à ${newEmailForm.to}`,
-            color: 'green',
-            autoClose: 4000,
-            icon: <div style={{ width: 0 }} />
-          })
-          
-          setShowNewEmailModal(false)
-          setNewEmailForm({
-            to: '',
-            subject: '',
-            content: ''
-          })
-        } else {
-          throw new Error('Erreur lors de l\'envoi')
-        }
+        notifications.show({
+          id: 'new-email-sent',
+          title: '✅ Email envoyé',
+          message: `Votre email a été envoyé à ${newEmailForm.to}`,
+          color: 'green',
+          autoClose: 4000,
+          icon: <div style={{ width: 0 }} />
+        });
+        
+        setShowNewEmailModal(false);
+        setNewEmailForm({
+          to: '',
+          subject: '',
+          content: ''
+        });
       } catch (error) {
-        console.error('Erreur lors de l\'envoi de l\'email:', error)
+        console.error('Erreur lors de l\'envoi de l\'email:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
         notifications.show({
           title: '❌ Erreur',
-          message: 'Impossible d\'envoyer l\'email',
+          message: `Impossible d'envoyer l'email: ${errorMessage}`,
           color: 'red',
           autoClose: 4000,
           icon: <div style={{ width: 0 }} />
-        })
+        });
       }
+    } else {
+      notifications.show({
+        title: '⚠️ Champs requis',
+        message: 'Veuillez remplir tous les champs',
+        color: 'yellow',
+        autoClose: 3000,
+        icon: <div style={{ width: 0 }} />
+      });
     }
   }
 

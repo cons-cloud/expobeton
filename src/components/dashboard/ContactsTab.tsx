@@ -88,18 +88,50 @@ export function ContactsTab({ contacts, setContacts }: ContactsTabProps) {
               return '';
             };
             
+            // Fonction pour valider un email
+            const isValidEmail = (email: string): boolean => {
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              return emailRegex.test(email);
+            };
+            
+            // Recherche extensive pour le nom de l'organisation
             const nom_organisation = findValue([
               'Organisation', 'Nom', 'Company', 'organisation', 'société', 'societe', 
               'Société', 'Societe', 'Entreprise', 'entreprise', 'Nom Organisation',
               'Nom de l\'organisation', 'Raison Sociale', 'raison sociale', 'RS',
-              'Organization', 'Organization Name', 'Business Name', 'Firm Name'
+              'Organization', 'Organization Name', 'Business Name', 'Firm Name',
+              'Nom Complet', 'Full Name', 'Contact Name', 'Personne', 'Contact',
+              'Client', 'Customer', 'Provider', 'Fournisseur', 'Partenaire'
             ]);
             
-            const adresse_email = findValue([
+            // Recherche extensive pour l'email avec validation
+            let adresse_email = '';
+            const emailKeys = [
               'Email', 'email', 'Email Address', 'adresse_email', 'adresse email',
               'Mail', 'mail', 'E-mail', 'e-mail', 'Courriel', 'courriel',
-              'Email Address', 'Email Adresse', 'Adresse Email', 'Contact Email'
-            ]);
+              'Email Address', 'Email Adresse', 'Adresse Email', 'Contact Email',
+              'Email Contact', 'Mail Address', 'Email Professionnel', 'Work Email'
+            ];
+            
+            // Chercher d'abord les colonnes email standards
+            for (const key of emailKeys) {
+              const value = findValue([key]);
+              if (value && isValidEmail(value)) {
+                adresse_email = value;
+                break;
+              }
+            }
+            
+            // Si pas d'email trouvé, chercher dans toutes les colonnes
+            if (!adresse_email) {
+              for (const [key, value] of Object.entries(row)) {
+                if (typeof value === 'string' && isValidEmail(value.trim())) {
+                  adresse_email = value.trim();
+                  console.log(`Email trouvé dans la colonne "${key}": ${adresse_email}`);
+                  break;
+                }
+              }
+            }
             
             return {
               nom_organisation,

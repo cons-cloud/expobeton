@@ -61,8 +61,8 @@ serve(async (req) => {
     if (method === 'POST') {
       const emailData: EmailRequest = await req.json()
       
-      // Configuration de l'expéditeur avec domaine personnalisé
-      const fromEmail = emailData.from || Deno.env.get('RESEND_FROM_EMAIL') || 'Expobeton Email <noreply@expobeton.com>'
+      // Configuration de l'expéditeur avec domaine Resend
+      const fromEmail = emailData.from || Deno.env.get('RESEND_FROM_EMAIL') || 'Expobeton Email <onboarding@resend.dev>'
       
       // Validation des destinataires
       const recipients = Array.isArray(emailData.to) ? emailData.to : [emailData.to]

@@ -16,24 +16,8 @@ const getHeaders = () => ({
   'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
 
-// Email de test autorisé par Resend (mode développement)
-const TEST_EMAIL = 'henrinelngando229@gmail.com';
-
-// Vérifier si on est en mode test et adapter le destinataire
-const adaptRecipientForTest = (recipient: string | string[]): string | string[] => {
-  // En développement, forcer l'utilisation de l'email de test
-  if (import.meta.env.DEV || import.meta.env.VITE_MODE === 'development') {
-    console.log('Mode développement: redirection vers email de test', TEST_EMAIL);
-    return TEST_EMAIL;
-  }
-  return recipient;
-};
-
 export const sendEmail = async (options: SendEmailOptions) => {
   try {
-    // Adapter le destinataire pour le mode test
-    const adaptedTo = adaptRecipientForTest(options.to);
-    
     // Ajouter lien de désabonnement pour améliorer la délivrabilité
     const htmlWithUnsubscribe = options.html + 
       `<br><br><small style="color: #666; font-size: 11px;">
@@ -43,7 +27,6 @@ export const sendEmail = async (options: SendEmailOptions) => {
 
     const emailData = {
       ...options,
-      to: adaptedTo,
       html: htmlWithUnsubscribe
     };
 
@@ -71,14 +54,11 @@ export const sendBulkEmails = async (emails: Omit<SendEmailOptions, 'from'>[]) =
   const results = [];
 
   try {
-    // Pour l'envoi en masse, on envoie les emails un par un
+    // Pour l'envoi en masse, on envoie les emails un par un sans délai
     for (const email of emails) {
       try {
         const result = await sendEmail(email);
         results.push({ success: true, messageId: result.messageId, to: email.to });
-        
-        // Délai plus long pour respecter la limite de 2 requêtes/seconde de Resend
-        await new Promise(resolve => setTimeout(resolve, 600)); // 600ms = ~1.6 req/sec
       } catch (error: unknown) {
         console.error(`Failed to send email to ${email.to}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
